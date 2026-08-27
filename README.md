@@ -1,6 +1,18 @@
 # Matt Stout Window Cleaning
 
-Live domain: https://mattstoutwindowcleaning.com
-Phone: (440) 241-9287
+Latest source synced from the live AppDeploy app (intro fade into hero, admin/Stripe, SEO landing pages, job gallery).
 
-Static site on Vercel. Point the IONOS domain at this project.
+**Live site:** https://matt-stout-window-cleaning-jfpfrq.v2.appdeploy.ai/
+
+## Stack
+- React + Vite + Tailwind
+- Backend on AppDeploy (`@appdeploy/sdk`): chat, bookings, admin, Stripe
+- Admin: `/#/admin` (Google allowlist: mattstoutwindowcleaners@gmail.com)
+
+## Local frontend
+```bash
+npm install
+npm run dev
+```
+
+Job photos, logo, and intro videos live under `/resources/` and `/squeegee-intro.mp4` on the live host. Full stack (chat, bookings, Stripe) runs on AppDeploy.
