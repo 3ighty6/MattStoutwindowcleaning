@@ -1,0 +1,8 @@
+{
+  "name": "Matt Stout Window Cleaning",
+  "short_name": "Matt Stout",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b3a5b",
+  "theme_color": "#0b3a5b"
+}
