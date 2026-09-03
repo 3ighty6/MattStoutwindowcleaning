@@ -2,15 +2,16 @@ import { useState, useRef, useEffect } from 'react';
 import { api } from '@appdeploy/client';
 import {
   Home, Building2, Layers, Grid3X3, Droplets, HardHat,
-  Sparkles, MessageCircle, X, Send, Star,
-  Shield, Clock, ThumbsUp, Menu, Paintbrush
+  Sparkles, MessageCircle, X, Send,
+  Menu, Paintbrush
 } from 'lucide-react';
 import {
   ResidentialPage, CommercialPage, ClevelandPage, MentorPage, AvonLakePage,
 } from './LandingPages';
 import Admin from './Admin';
+import { MediaSlot, extractMedia } from './media';
 
-type ChatMessage = { role: 'user' | 'assistant'; content: string };
+type ChatMessage = { role: 'user' | 'assistant'; content: string; clips?: string[] };
 const LOGO = '/resources/logo.jpg';
 const SERVICES = [
   { icon: Home, title: 'Residential Window Cleaning', desc: 'We make your home shine inside and out.', img: '/resources/job2-bay-windows.jpg' },
@@ -87,9 +88,15 @@ export default function App() {
   const sendMessage = async () => {
     if (!input.trim() || sending) return;
     const userMsg = input.trim(); setInput(''); setMessages(prev => [...prev, { role: 'user', content: userMsg }]); setSending(true);
-    try { const res = await api.post('/api/chat', { message: userMsg, history: messages.slice(-6) }); setMessages(prev => [...prev, { role: 'assistant', content: res.data?.reply || 'Thanks — we will follow up soon.' }]); }
-    catch { setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I am having trouble right now. Please use the contact form below.' }]); }
-    finally { setSending(false); }
+    try {
+      const res = await api.post('/api/chat', { message: userMsg, history: messages.slice(-6) });
+      const raw = String(res.data?.reply || 'Thanks — we will follow up soon.');
+      const extra = [res.data?.clip, res.data?.video, res.data?.mp4].filter(Boolean) as string[];
+      const parsed = extractMedia([raw, ...extra].join(' '));
+      setMessages(prev => [...prev, { role: 'assistant', content: parsed.text || raw, clips: parsed.media }]);
+    } catch {
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I am having trouble right now. Please use the contact form below.' }]);
+    } finally { setSending(false); }
   };
   const handleContact = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -134,7 +141,9 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {SERVICES.map((s, i) => (
             <div key={i} className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
-              <div className="aspect-[16/10] bg-cover bg-center" style={{ backgroundImage: `url(${s.img})` }} />
+              <div className="aspect-[16/10] overflow-hidden bg-slate-900">
+                <MediaSlot src={s.img} className="w-full h-full object-cover" label={s.title} />
+              </div>
               <div className="p-5"><h3 className="font-semibold">{s.title}</h3><p className="text-slate-400 text-sm">{s.desc}</p></div>
             </div>
           ))}
@@ -143,7 +152,9 @@ export default function App() {
       <section id="gallery" className="py-20 bg-slate-950">
         <div className="max-w-7xl mx-auto px-4 grid grid-cols-2 md:grid-cols-4 gap-3">
           {JOB_GALLERY.map((item, i) => (
-            <div key={i} className="aspect-[4/3] rounded-lg bg-cover bg-center border border-slate-700" style={{ backgroundImage: `url(${item.src})` }} title={item.label} />
+            <div key={i} className="aspect-[4/3] rounded-lg overflow-hidden border border-slate-700 bg-slate-900">
+              <MediaSlot src={item.src} className="w-full h-full object-cover" label={item.label} />
+            </div>
           ))}
         </div>
       </section>
@@ -167,7 +178,17 @@ export default function App() {
         {chatOpen ? (
           <div className="w-80 h-96 bg-slate-900 border border-slate-700 rounded-2xl flex flex-col overflow-hidden">
             <div className="p-3 flex justify-between border-b border-slate-800"><span>Assistant</span><button onClick={() => setChatOpen(false)}><X size={16} /></button></div>
-            <div className="flex-1 overflow-y-auto p-3 space-y-2">{messages.map((m, i) => <div key={i} className={m.role === 'user' ? 'text-right' : ''}>{m.content}</div>)}<div ref={chatEndRef} /></div>
+            <div className="flex-1 overflow-y-auto p-3 space-y-2">
+              {messages.map((m, i) => (
+                <div key={i} className={m.role === 'user' ? 'text-right' : ''}>
+                  {m.content && <div className="text-sm whitespace-pre-wrap">{m.content}</div>}
+                  {m.clips?.map((clip) => (
+                    <video key={clip} src={clip} className="mt-2 w-full rounded-lg" autoPlay muted loop playsInline controls />
+                  ))}
+                </div>
+              ))}
+              <div ref={chatEndRef} />
+            </div>
             <div className="p-2 flex gap-2"><input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendMessage()} className="flex-1 bg-slate-800 rounded px-2" /><button onClick={sendMessage}><Send size={16} /></button></div>
           </div>
         ) : <button onClick={() => setChatOpen(true)} className="w-14 h-14 bg-blue-600 rounded-full flex items-center justify-center"><MessageCircle size={24} /></button>}
