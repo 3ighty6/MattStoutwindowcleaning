@@ -13,10 +13,12 @@ import { MediaSlot, extractMedia } from './media';
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string; clips?: string[] };
 const LOGO = '/resources/logo.jpg';
+const CLIP_SQUEEGEE = '/squeegee-intro.mp4';
+const CLIP_FOAM = '/resources/intro-foam-intense.mp4';
 const SERVICES = [
-  { icon: Home, title: 'Residential Window Cleaning', desc: 'We make your home shine inside and out.', img: '/resources/job2-bay-windows.jpg' },
+  { icon: Home, title: 'Residential Window Cleaning', desc: 'We make your home shine inside and out.', img: CLIP_SQUEEGEE },
   { icon: Building2, title: 'Commercial Window Cleaning', desc: 'Keep your business looking professional year-round.', img: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=600&q=80' },
-  { icon: Layers, title: 'Interior & Exterior Glass', desc: 'Thorough cleaning for all types of glass.', img: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=600&q=80' },
+  { icon: Layers, title: 'Interior & Exterior Glass', desc: 'Thorough cleaning for all types of glass.', img: CLIP_FOAM },
   { icon: Grid3X3, title: 'Screen Cleaning', desc: 'Dirt, dust & pollen removal for clearer views.', img: 'https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&w=600&q=80' },
   { icon: Droplets, title: 'Hard Water Stain Removal', desc: 'Restore glass to its original clarity.', img: 'https://images.unsplash.com/photo-1527689368864-3a821dbccc34?auto=format&fit=crop&w=600&q=80' },
   { icon: HardHat, title: 'Construction Cleanup', desc: 'Post-build glass and residue — we remove the mess and leave the shine.', img: '/resources/job4-glass-before-after.jpg' },
@@ -28,8 +30,8 @@ const SERVICES = [
   { icon: Paintbrush, title: 'Interior Painting', desc: 'Clean, precise interior painting for every room.', img: 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=600&q=80' },
 ];
 const JOB_GALLERY = [
-  { src: '/resources/job1-modern-exterior.jpg', label: 'Modern home exterior' },
-  { src: '/resources/job1-worker-ladder.jpg', label: 'Window cleaning in progress' },
+  { src: CLIP_SQUEEGEE, label: 'Window cleaning in action' },
+  { src: CLIP_FOAM, label: 'Foam wash in progress' },
   { src: '/resources/job1-truck-spray.jpg', label: 'On-site crew' },
   { src: '/resources/job2-bay-windows.jpg', label: 'Residential windows' },
   { src: '/resources/job2-entry-windows.jpg', label: 'Entry glass cleaned' },
@@ -71,7 +73,11 @@ export default function App() {
       return 'fading';
     });
   };
-  const [messages, setMessages] = useState<ChatMessage[]>([{ role: 'assistant', content: "Hi! I'm the Matt Stout Window Cleaning assistant. I can answer questions about our services or help you request an appointment. How can I help?" }]);
+  const [messages, setMessages] = useState<ChatMessage[]>([{
+    role: 'assistant',
+    content: "Hi! I'm the Matt Stout Window Cleaning assistant. I can answer questions about our services or help you request an appointment. How can I help?",
+    clips: [CLIP_SQUEEGEE],
+  }]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [formStatus, setFormStatus] = useState('');
@@ -93,9 +99,10 @@ export default function App() {
       const raw = String(res.data?.reply || 'Thanks — we will follow up soon.');
       const extra = [res.data?.clip, res.data?.video, res.data?.mp4].filter(Boolean) as string[];
       const parsed = extractMedia([raw, ...extra].join(' '));
-      setMessages(prev => [...prev, { role: 'assistant', content: parsed.text || raw, clips: parsed.media }]);
+      const clips = parsed.media.length ? parsed.media : extra;
+      setMessages(prev => [...prev, { role: 'assistant', content: parsed.text || raw, clips }]);
     } catch {
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I am having trouble right now. Please use the contact form below.' }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I am having trouble right now. Please use the contact form below.', clips: [CLIP_SQUEEGEE] }]);
     } finally { setSending(false); }
   };
   const handleContact = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -110,8 +117,8 @@ export default function App() {
       {introPhase !== 'done' && route === 'home' && (
         <div className={'fixed inset-0 z-[100] overflow-hidden bg-slate-950 transition-opacity duration-1000 ' + (introPhase === 'fading' ? 'opacity-0 pointer-events-none' : 'opacity-100')}>
           <video className="absolute inset-0 w-full h-full object-cover" autoPlay muted playsInline onEnded={beginIntroFade}>
-            <source src="/resources/intro-foam-intense.mp4" type="video/mp4" />
-            <source src="/squeegee-intro.mp4" type="video/mp4" />
+            <source src={CLIP_FOAM} type="video/mp4" />
+            <source src={CLIP_SQUEEGEE} type="video/mp4" />
           </video>
           <div className="msa-intro-ui relative z-30 h-full flex flex-col items-center justify-center text-center px-6">
             <img src={LOGO} alt="MSA" className="h-24 sm:h-32 w-auto mb-6" />
@@ -129,7 +136,7 @@ export default function App() {
         </div>
       </nav>
       <section id="home" className="relative pt-16 min-h-screen flex items-center overflow-hidden">
-        <video className="absolute inset-0 w-full h-full object-cover" autoPlay muted playsInline loop><source src="/squeegee-intro.mp4" type="video/mp4" /></video>
+        <video className="absolute inset-0 w-full h-full object-cover" autoPlay muted playsInline loop><source src={CLIP_SQUEEGEE} type="video/mp4" /></video>
         <div className="absolute inset-0 bg-slate-950/80" />
         <div className="relative max-w-7xl mx-auto px-4 py-24">
           <h1 className="font-display text-4xl sm:text-6xl font-extrabold">CRYSTAL CLEAR<br /><span className="text-blue-400">WINDOWS.</span></h1>
