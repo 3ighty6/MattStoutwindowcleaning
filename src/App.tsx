@@ -3,13 +3,13 @@ import { api } from '@appdeploy/client';
 import {
   Home, Building2, Layers, Grid3X3, Droplets, HardHat,
   Sparkles, MessageCircle, X, Send,
-  Menu, Paintbrush
+  Menu, Paintbrush, EyeOff
 } from 'lucide-react';
 import {
   ResidentialPage, CommercialPage, ClevelandPage, MentorPage, AvonLakePage,
 } from './LandingPages';
 import Admin from './Admin';
-import { MediaSlot, extractMedia } from './media';
+import { MediaSlot, extractMedia, isVideoSrc } from './media';
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string; clips?: string[] };
 const LOGO = '/resources/logo.jpg';
@@ -63,6 +63,10 @@ export default function App() {
   const [route, setRoute] = useState<Route>(() => typeof window !== 'undefined' ? pathToRoute(window.location.hash) : 'home');
   const [menuOpen, setMenuOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [chatHidden, setChatHidden] = useState(() => {
+    try { return sessionStorage.getItem('msa_chat_hidden') === '1'; } catch { return false; }
+  });
+  const [lightbox, setLightbox] = useState<{ src: string; label?: string } | null>(null);
   const [introPhase, setIntroPhase] = useState<'playing' | 'fading' | 'done'>(() => {
     try { return sessionStorage.getItem('msa_intro_seen') === '1' ? 'done' : 'playing'; } catch { return 'playing'; }
   });
@@ -72,6 +76,11 @@ export default function App() {
       window.setTimeout(() => { setIntroPhase('done'); try { sessionStorage.setItem('msa_intro_seen', '1'); } catch {} }, 1100);
       return 'fading';
     });
+  };
+  const hideChat = () => {
+    setChatOpen(false);
+    setChatHidden(true);
+    try { sessionStorage.setItem('msa_chat_hidden', '1'); } catch {}
   };
   const [messages, setMessages] = useState<ChatMessage[]>([{
     role: 'assistant',
@@ -84,7 +93,14 @@ export default function App() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   useEffect(() => { const onHash = () => setRoute(pathToRoute(window.location.hash)); window.addEventListener('hashchange', onHash); return () => window.removeEventListener('hashchange', onHash); }, []);
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+  useEffect(() => {
+    if (!lightbox) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setLightbox(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [lightbox]);
   const goHome = () => { window.location.hash = ''; setRoute('home'); };
+  const openMedia = (src: string, label?: string) => setLightbox({ src, label });
   if (route === 'residential') return <ResidentialPage logo={LOGO} onHome={goHome} onContact={goHome} />;
   if (route === 'commercial') return <CommercialPage logo={LOGO} onHome={goHome} onContact={goHome} />;
   if (route === 'cleveland') return <ClevelandPage logo={LOGO} onHome={goHome} onContact={goHome} />;
@@ -149,7 +165,7 @@ export default function App() {
           {SERVICES.map((s, i) => (
             <div key={i} className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
               <div className="aspect-[16/10] overflow-hidden bg-slate-900">
-                <MediaSlot src={s.img} className="w-full h-full object-cover" label={s.title} />
+                <MediaSlot src={s.img} className="w-full h-full object-cover" label={s.title} onOpen={openMedia} />
               </div>
               <div className="p-5"><h3 className="font-semibold">{s.title}</h3><p className="text-slate-400 text-sm">{s.desc}</p></div>
             </div>
@@ -160,7 +176,7 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 grid grid-cols-2 md:grid-cols-4 gap-3">
           {JOB_GALLERY.map((item, i) => (
             <div key={i} className="aspect-[4/3] rounded-lg overflow-hidden border border-slate-700 bg-slate-900">
-              <MediaSlot src={item.src} className="w-full h-full object-cover" label={item.label} />
+              <MediaSlot src={item.src} className="w-full h-full object-cover" label={item.label} onOpen={openMedia} />
             </div>
           ))}
         </div>
@@ -181,25 +197,52 @@ export default function App() {
         </form>
       </section>
       <footer className="py-8 text-center text-slate-500 text-sm">Matt Stout Window Cleaning · (440) 497-9424 · <a href="#/admin" className="text-blue-400">Admin</a></footer>
-      <div className="fixed bottom-5 right-4 z-50">
-        {chatOpen ? (
-          <div className="w-80 h-96 bg-slate-900 border border-slate-700 rounded-2xl flex flex-col overflow-hidden">
-            <div className="p-3 flex justify-between border-b border-slate-800"><span>Assistant</span><button onClick={() => setChatOpen(false)}><X size={16} /></button></div>
-            <div className="flex-1 overflow-y-auto p-3 space-y-2">
-              {messages.map((m, i) => (
-                <div key={i} className={m.role === 'user' ? 'text-right' : ''}>
-                  {m.content && <div className="text-sm whitespace-pre-wrap">{m.content}</div>}
-                  {m.clips?.map((clip) => (
-                    <video key={clip} src={clip} className="mt-2 w-full rounded-lg" autoPlay muted loop playsInline controls />
-                  ))}
+
+      {!chatHidden && (
+        <div className="fixed bottom-4 right-3 sm:bottom-5 sm:right-4 z-50">
+          {chatOpen ? (
+            <div className="w-[16.5rem] h-[20.5rem] sm:w-80 sm:h-96 bg-slate-900 border border-slate-700 rounded-2xl flex flex-col overflow-hidden shadow-2xl">
+              <div className="p-2.5 sm:p-3 flex items-center justify-between gap-2 border-b border-slate-800">
+                <span className="text-sm font-semibold">Assistant</span>
+                <div className="flex items-center gap-1">
+                  <button type="button" onClick={hideChat} className="text-[11px] sm:text-xs px-2 py-1 rounded-md bg-slate-800 text-slate-200 hover:bg-slate-700 flex items-center gap-1" title="Hide chat">
+                    <EyeOff size={13} /> Hide me
+                  </button>
+                  <button type="button" onClick={() => setChatOpen(false)} aria-label="Close chat"><X size={16} /></button>
                 </div>
-              ))}
-              <div ref={chatEndRef} />
+              </div>
+              <div className="flex-1 overflow-y-auto p-2.5 sm:p-3 space-y-2">
+                {messages.map((m, i) => (
+                  <div key={i} className={m.role === 'user' ? 'text-right' : ''}>
+                    {m.content && <div className="text-xs sm:text-sm whitespace-pre-wrap">{m.content}</div>}
+                    {m.clips?.map((clip) => (
+                      <video key={clip} src={clip} className="mt-2 w-full rounded-lg cursor-pointer" autoPlay muted loop playsInline onClick={() => openMedia(clip, 'Clip')} />
+                    ))}
+                  </div>
+                ))}
+                <div ref={chatEndRef} />
+              </div>
+              <div className="p-2 flex gap-2"><input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendMessage()} className="flex-1 bg-slate-800 rounded px-2 text-sm" /><button onClick={sendMessage}><Send size={16} /></button></div>
             </div>
-            <div className="p-2 flex gap-2"><input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendMessage()} className="flex-1 bg-slate-800 rounded px-2" /><button onClick={sendMessage}><Send size={16} /></button></div>
-          </div>
-        ) : <button onClick={() => setChatOpen(true)} className="w-14 h-14 bg-blue-600 rounded-full flex items-center justify-center"><MessageCircle size={24} /></button>}
-      </div>
+          ) : (
+            <button type="button" onClick={() => setChatOpen(true)} className="w-11 h-11 sm:w-14 sm:h-14 bg-blue-600 rounded-full flex items-center justify-center shadow-lg" aria-label="Open chat">
+              <MessageCircle size={20} className="sm:hidden" />
+              <MessageCircle size={24} className="hidden sm:block" />
+            </button>
+          )}
+        </div>
+      )}
+
+      {lightbox && (
+        <div className="fixed inset-0 z-[80] bg-black/85 flex items-center justify-center p-4" onClick={() => setLightbox(null)}>
+          <button type="button" className="absolute top-4 right-4 text-white" onClick={() => setLightbox(null)} aria-label="Close"><X size={28} /></button>
+          {isVideoSrc(lightbox.src) ? (
+            <video src={lightbox.src} className="max-w-full max-h-[88vh] rounded-lg" autoPlay controls playsInline onClick={(e) => e.stopPropagation()} />
+          ) : (
+            <img src={lightbox.src} alt={lightbox.label || ''} className="max-w-full max-h-[88vh] rounded-lg object-contain" onClick={(e) => e.stopPropagation()} />
+          )}
+        </div>
+      )}
     </div>
   );
 }

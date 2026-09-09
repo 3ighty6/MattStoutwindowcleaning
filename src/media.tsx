@@ -17,15 +17,18 @@ export function MediaSlot({
   src,
   className = 'w-full h-full object-cover',
   label,
+  onOpen,
 }: {
   src: string;
   className?: string;
   label?: string;
+  onOpen?: (src: string, label?: string) => void;
 }) {
+  const open = () => onOpen?.(src, label);
   if (isVideoSrc(src)) {
     return (
       <video
-        className={className}
+        className={className + (onOpen ? ' cursor-pointer' : '')}
         src={src}
         autoPlay
         muted
@@ -33,16 +36,19 @@ export function MediaSlot({
         playsInline
         title={label}
         aria-label={label}
+        onClick={open}
       />
     );
   }
   return (
-    <div
-      className={className}
-      style={{ backgroundImage: `url(${src})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
-      title={label}
-      role="img"
-      aria-label={label}
-    />
+    <button type="button" className="block w-full h-full p-0 border-0" onClick={open} aria-label={label ? 'View ' + label : 'View image'}>
+      <div
+        className={className + ' cursor-pointer'}
+        style={{ backgroundImage: `url(${src})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+        title={label}
+        role="img"
+        aria-label={label}
+      />
+    </button>
   );
 }
